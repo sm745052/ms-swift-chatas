@@ -143,7 +143,9 @@ class TrainArguments(SwanlabArguments, TorchAccArguments, TunerArguments, Seq2Se
 
     # dataset
     packing: bool = False
-    lazy_tokenize: Optional[bool] = None
+    lazy_tokenize: Optional[bool] = True
+    chatas: bool = True
+
 
     # plugin
     loss_type: Optional[str] = field(default=None, metadata={'help': f'loss_func choices: {list(LOSS_MAPPING.keys())}'})

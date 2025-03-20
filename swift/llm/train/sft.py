@@ -5,6 +5,7 @@ from typing import List, Union
 
 from datasets import Dataset as HfDataset
 
+from swift.llm.dataset.utils import LazyChatDataset
 from swift.plugin import extra_callbacks, get_loss_func, get_metric
 from swift.trainers import IntervalStrategy, TrainerFactory
 from swift.utils import (append_to_jsonl, get_logger, get_model_parameter_info, is_master, plot_images, stat_array,
@@ -16,7 +17,17 @@ from ..infer import prepare_generation_config
 from ..model import get_model_arch
 from ..utils import deep_getattr, dynamic_gradient_checkpointing
 from .tuner import TunerMixin
-
+from chatas.code.utils.dataset import (
+    Dialog,
+    DialogData,
+    DialogCCData,
+    # ImageChatData,
+    MMDDData,
+    Utterance,
+    create_image_path_by_url,
+    # create_image_path_by_url_image_chat,
+    create_image_path_by_url_mmdd,
+)
 logger = get_logger()
 
 
@@ -80,16 +91,37 @@ class SwiftSft(SwiftPipeline, TunerMixin):
     def _get_dataset(self):
         # The random shuffling of the training set occurs in the dataloader of the trainer.
         args = self.args
-        dataset_kwargs = args.get_dataset_kwargs()
-        train_dataset, val_dataset = load_dataset(
-            args.dataset, split_dataset_ratio=args.split_dataset_ratio, **dataset_kwargs)
-        if len(args.val_dataset) > 0:
-            # Loading val dataset
-            _, val_dataset = load_dataset(args.val_dataset, split_dataset_ratio=1.0, **dataset_kwargs)
-            assert args.split_dataset_ratio == 0.
-        logger.info(f'train_dataset: {train_dataset}')
-        logger.info(f'val_dataset: {val_dataset}')
-
+        if args.chatas:
+            train_dataset = MMDDData(
+                path="../../CHAT-AS-MULTIMODAL/data/MMDD/train.csv",
+                to_filter=True,
+                to_replace=True,
+                image_path_by_url=create_image_path_by_url_mmdd("../../CHAT-AS-MULTIMODAL/data/MMDD/images"),
+                to_unroll=False,
+                min_images_per_dialog=1,
+                # n_samples=1100,
+                to_split=False,
+            )
+            val_dataset = MMDDData(
+                path="../../CHAT-AS-MULTIMODAL/data/MMDD/dev.csv",
+                to_filter=True,
+                to_replace=True,
+                image_path_by_url=create_image_path_by_url_mmdd("../../CHAT-AS-MULTIMODAL/data/MMDD/images"),
+                to_unroll=False,
+                min_images_per_dialog=1,
+                n_samples=100,
+                to_split=False,
+            )
+        # dataset_kwargs = args.get_dataset_kwargs()
+        # train_dataset, val_dataset = load_dataset(
+        #     args.dataset, split_dataset_ratio=args.split_dataset_ratio, **dataset_kwargs)
+        # if len(args.val_dataset) > 0:
+        #     # Loading val dataset
+        #     _, val_dataset = load_dataset(args.val_dataset, split_dataset_ratio=1.0, **dataset_kwargs)
+        #     assert args.split_dataset_ratio == 0.
+        logger.info(f'train_dataset: {len(train_dataset)}')
+        logger.info(f'val_dataset: {len(val_dataset)}')
+        # print(train_dataset.data[0])
         return train_dataset, val_dataset
 
     def _get_loss_func(self):
@@ -117,7 +149,7 @@ class SwiftSft(SwiftPipeline, TunerMixin):
         args = self.args
 
         train_dataset, val_dataset = self._get_dataset()
-        self._save_val_dataset(args.output_dir, val_dataset)
+        # self._save_val_dataset(args.output_dir, val_dataset)
 
         if args.task_type == 'seq_cls' and isinstance(train_dataset, HfDataset) and 'label' in train_dataset.features:
             min_num_labels = int(max(train_dataset['label']) + 1)
@@ -241,11 +273,20 @@ class SwiftSft(SwiftPipeline, TunerMixin):
         is_grpo = hasattr(args, 'rlhf_type') and args.rlhf_type == 'grpo'
         if not is_grpo:
             if args.lazy_tokenize:
-                train_dataset = LazyLLMDataset(
-                    train_dataset, template.encode, strict=args.strict, random_state=args.data_seed)
-                if val_dataset is not None and not args.predict_with_generate:
-                    val_dataset = LazyLLMDataset(
-                        val_dataset, template.encode, strict=args.strict, random_state=args.data_seed)
+                if args.chatas:
+                    # import inspect
+                    # print(inspect.signature(LazyChatDataset.__init__))
+                    train_dataset = LazyChatDataset(
+                        train_dataset, template.encode, strict=args.strict, random_state=args.data_seed)
+                    if val_dataset is not None and not args.predict_with_generate:
+                        val_dataset = LazyChatDataset(
+                            val_dataset, template.encode, strict=args.strict, random_state=args.data_seed)
+                else:
+                    train_dataset = LazyLLMDataset(
+                        train_dataset, template.encode, strict=args.strict, random_state=args.data_seed)
+                    if val_dataset is not None and not args.predict_with_generate:
+                        val_dataset = LazyLLMDataset(
+                            val_dataset, template.encode, strict=args.strict, random_state=args.data_seed)
             else:
                 preprocessor_cls = PackingPreprocessor if args.packing else EncodePreprocessor
                 preprocessor = preprocessor_cls(template=template)
