@@ -110,7 +110,6 @@ class TrainArguments(SwanlabArguments, TunerArguments, Seq2SeqTrainingOverrideAr
     # dataset
     packing: bool = False
     lazy_tokenize: Optional[bool] = True
-    chatas: bool = True
 
 
     # plugin

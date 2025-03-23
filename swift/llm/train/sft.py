@@ -21,11 +21,11 @@ from chatas.code.utils.dataset import (
     Dialog,
     DialogData,
     DialogCCData,
-    # ImageChatData,
+    ImageChatData,
     MMDDData,
     Utterance,
     create_image_path_by_url,
-    # create_image_path_by_url_image_chat,
+    create_image_path_by_url_image_chat,
     create_image_path_by_url_mmdd,
 )
 logger = get_logger()
@@ -91,34 +91,56 @@ class SwiftSft(SwiftPipeline, TunerMixin):
     def _get_dataset(self):
         # The random shuffling of the training set occurs in the dataloader of the trainer.
         args = self.args
-        if args.chatas:
+        if args.chatas == "mmdd":
             train_dataset = MMDDData(
-                path="../../CHAT-AS-MULTIMODAL/data/MMDD/train.csv",
+                path=f"{args.dataset_dir}train.csv",
                 to_filter=True,
                 to_replace=True,
-                image_path_by_url=create_image_path_by_url_mmdd("../../CHAT-AS-MULTIMODAL/data/MMDD/images"),
+                image_path_by_url=create_image_path_by_url_mmdd(f"{args.image_dir}"),
                 to_unroll=False,
                 min_images_per_dialog=1,
                 # n_samples=1100,
                 to_split=False,
             )
             val_dataset = MMDDData(
-                path="../../CHAT-AS-MULTIMODAL/data/MMDD/dev.csv",
+                path=f"{args.dataset_dir}dev.csv",
                 to_filter=True,
                 to_replace=True,
-                image_path_by_url=create_image_path_by_url_mmdd("../../CHAT-AS-MULTIMODAL/data/MMDD/images"),
+                image_path_by_url=create_image_path_by_url_mmdd(f"{args.image_dir}"),
                 to_unroll=False,
                 min_images_per_dialog=1,
                 n_samples=100,
                 to_split=False,
             )
-        # dataset_kwargs = args.get_dataset_kwargs()
-        # train_dataset, val_dataset = load_dataset(
-        #     args.dataset, split_dataset_ratio=args.split_dataset_ratio, **dataset_kwargs)
-        # if len(args.val_dataset) > 0:
-        #     # Loading val dataset
-        #     _, val_dataset = load_dataset(args.val_dataset, split_dataset_ratio=1.0, **dataset_kwargs)
-        #     assert args.split_dataset_ratio == 0.
+        elif args.chatas == "imgchat":
+            train_dataset = ImageChatData(
+                path=f"{args.dataset_dir}train.csv",
+                to_filter=True,
+                to_replace=True,
+                image_path_by_url=create_image_path_by_url_image_chat(f"{args.image_dir}"),
+                to_unroll=False,
+                min_images_per_dialog=1,
+                # n_samples=1100,
+                to_split=False,
+            )
+            val_dataset = ImageChatData(
+                path=f"{args.dataset_dir}valid.csv",
+                to_filter=True,
+                to_replace=True,
+                image_path_by_url=create_image_path_by_url_image_chat(f"{args.image_dir}"),
+                to_unroll=False,
+                min_images_per_dialog=1,
+                n_samples=100,
+                to_split=False,
+            )
+        else:
+            dataset_kwargs = args.get_dataset_kwargs()
+            train_dataset, val_dataset = load_dataset(
+                args.dataset, split_dataset_ratio=args.split_dataset_ratio, **dataset_kwargs)
+            if len(args.val_dataset) > 0:
+                # Loading val dataset
+                _, val_dataset = load_dataset(args.val_dataset, split_dataset_ratio=1.0, **dataset_kwargs)
+                assert args.split_dataset_ratio == 0.
         logger.info(f'train_dataset: {len(train_dataset)}')
         logger.info(f'val_dataset: {len(val_dataset)}')
         # print(train_dataset.data[0])

@@ -33,3 +33,4 @@ transformers_stream_generator
 trl>=0.13,<0.17
 uvicorn
 zstandard
+wandb

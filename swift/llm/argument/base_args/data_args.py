@@ -46,6 +46,9 @@ class DataArguments:
     columns: Optional[Union[dict, str]] = None
     strict: bool = False
     remove_unused_columns: bool = True
+    chatas: str = ""
+    dataset_dir: str = "./"
+    image_dir: str = "./"
     # Chinese name and English name
     model_name: List[str] = field(default_factory=lambda: [None, None], metadata={'help': "e.g. ['小黄', 'Xiao Huang']"})
     model_author: List[str] = field(
