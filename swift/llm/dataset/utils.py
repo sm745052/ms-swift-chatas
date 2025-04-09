@@ -135,9 +135,11 @@ class LazyChatDataset(Dataset):
         strict: bool = False,
         random_state: Union[np.random.RandomState, int, None] = None,
         traceback_limit: int = 10,
+        no_img: bool = False,
     ) -> None:
         self.dataset = dataset
         self.encode_func = encode_func
+        self.no_img = no_img
 
         n_try_fetch = 1 if strict else min(n_try_fetch, len(self.dataset))
         assert n_try_fetch >= 1
@@ -160,7 +162,8 @@ class LazyChatDataset(Dataset):
         images = []
         for utterance in dialog.utterances[:-1]:
             if len(utterance.images) > 0:
-                images.extend(utterance.images)
+                if not self.no_img:
+                    images.extend(utterance.images)
                 query += f"{utterance.speaker}:<|IMAGE|>\n"
             else:
                 query += f"{utterance.speaker}:{utterance.text}\n"

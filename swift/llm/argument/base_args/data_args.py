@@ -47,6 +47,7 @@ class DataArguments:
     strict: bool = False
     remove_unused_columns: bool = True
     chatas: str = ""
+    no_img: bool = False
     dataset_dir: str = "./"
     image_dir: str = "./"
     # Chinese name and English name

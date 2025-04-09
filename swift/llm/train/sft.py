@@ -297,10 +297,10 @@ class SwiftSft(SwiftPipeline, TunerMixin):
                     # import inspect
                     # print(inspect.signature(LazyChatDataset.__init__))
                     train_dataset = LazyChatDataset(
-                        train_dataset, template.encode, strict=args.strict, random_state=args.data_seed)
+                        train_dataset, template.encode, strict=args.strict, random_state=args.data_seed, no_img = args.no_img)
                     if val_dataset is not None and not args.predict_with_generate:
                         val_dataset = LazyChatDataset(
-                            val_dataset, template.encode, strict=args.strict, random_state=args.data_seed)
+                            val_dataset, template.encode, strict=args.strict, random_state=args.data_seed, no_img = args.no_img)
                 else:
                     train_dataset = LazyLLMDataset(
                         train_dataset, template.encode, strict=args.strict, random_state=args.data_seed)
