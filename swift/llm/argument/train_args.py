@@ -26,7 +26,7 @@ class Seq2SeqTrainingOverrideArguments(TrainArgumentsMixin, Seq2SeqTrainingArgum
 
     def _init_output_dir(self):
         if self.output_dir is None:
-            self.output_dir = f'output/{self.model_suffix}'
+            self.ochutput_dir = f'output/{self.model_suffix}'
         self.output_dir = to_abspath(self.output_dir)
 
     def _init_eval_strategy(self):

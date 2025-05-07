@@ -11,7 +11,7 @@ from swift.plugin import InferStats, MeanMetric, compute_rouge_bleu
 from swift.utils import JsonlWriter, get_logger, is_master, read_from_jsonl
 from .infer_engine import AdapterRequest, PtEngine
 from .protocol import RequestConfig
-from .utils import InferCliState
+from .utils import InferCliState, ConfidenceStoppingCriteria
 
 logger = get_logger()
 

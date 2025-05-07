@@ -9,6 +9,8 @@ from swift.tuners import Swift
 from swift.utils import get_logger
 from ..utils import Messages
 
+from transformers import StoppingCriteria, StoppingCriteriaList
+
 logger = get_logger()
 
 
@@ -145,3 +147,47 @@ def prepare_model_template(args, **kwargs):
     model = prepare_adapter(args, model)
     template = args.get_template(processor)
     return model, template
+
+# Custom stopping criteria based on token-level confidence
+class ConfidenceStoppingCriteria(StoppingCriteria):
+    def __init__(self, threshold: float, batch_size: int=1):
+        """
+        Args:
+            threshold (float): Stop generation if the average maximum probability across beams falls below this threshold.
+        """
+        self.threshold = threshold
+        self.batch_size = batch_size
+
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
+        # Extract the tensor from the tuple
+        scores_tensor = scores[0]  # shape: [batch_size*num_beams, vocab_size]
+        
+        # Calculate number of beams based on the provided batch_size
+        num_beams = scores_tensor.shape[0] // self.batch_size
+        
+        # Reshape scores_tensor to [batch_size, num_beams, vocab_size]
+        scores_tensor = scores_tensor.view(self.batch_size, num_beams, -1)
+        
+        # Compute softmax probabilities along the vocabulary dimension
+        probs = scores_tensor.softmax(dim=-1)
+        
+        # Compute the entropy for each beam:
+        # entropy = -sum(p * log(p)) over the vocab dimension.
+        # We add a small epsilon to avoid log(0) issues.
+        eps = 1e-12
+        entropy = -(probs * (probs + eps).log()).sum(dim=-1)  # shape: [batch_size, num_beams]
+        # print(entropy)
+        # Average the entropy over the beams for each instance
+        avg_entropy = entropy.mean(dim=-1)  # shape: [batch_size]
+        
+        # Decision rule:
+        # If the average entropy for an instance is higher than the threshold, it indicates uncertainty,
+        # so we signal to stop generation (True) for that instance.
+        decisions = avg_entropy > self.threshold  # boolean tensor of shape [batch_size]
+        mae.append(avg_entropy)
+        # print(avg_entropy)
+        # Optionally, log or print avg_entropy for debugging:
+        # print("Avg entropy per instance:", avg_entropy)
+        
+        # Return a list of booleans (one per instance)
+        return decisions[0]
