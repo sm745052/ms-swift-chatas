@@ -9,6 +9,6 @@ swift sft \
   --chatas imgchat \
   --dataset_dir "anubhab/ParlAI/data/image_chat/" \
   --image_dir "anubhab/ParlAI/data/yfcc_images/" \
-  --output_dir ./exp_output_paligemma \
   --report_to wandb \
   --output_dir ./exp_output_qwen2_vl_imagechat \
+  --num_train_epochs 5 \

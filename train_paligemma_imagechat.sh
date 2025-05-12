@@ -11,3 +11,4 @@ swift sft \
   --image_dir "anubhab/ParlAI/data/yfcc_images/" \
   --report_to wandb \
   --output_dir ./exp_output_paligemma_imgchat \
+  --num_train_epochs 5 \
