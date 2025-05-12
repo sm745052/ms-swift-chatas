@@ -26,11 +26,11 @@ import torch
 os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
 
 OBS = 4
-BS = 2
-OUTPUT_FILE = "out.all.mmdd.minicpm.no_img"
+BS = 1
+OUTPUT_FILE = "out.all.mmdd.minicpm.no_img.0.1"
 OUTPUT_DIR = "output/"
 NO_IMG = True
-ADAPTER= "/home/bishals/external/swift/output/MiniCPM-V-2_6/v5-20250502-053718/checkpoint-2500"
+ADAPTER= "/home/anubhab-pg/sm745052/swift/output/MiniCPM-V-2_6/v5-20250320-065856/checkpoint-2500"
 
 mae = []
 
@@ -45,6 +45,7 @@ class ConfidenceStoppingCriteria(StoppingCriteria):
         self.batch_size = batch_size
 
     def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
+        print("Called")
         if isinstance(scores, tuple):
             scores = scores[0]  # logits are first element
         # Extract the tensor from the tuple
@@ -64,20 +65,9 @@ class ConfidenceStoppingCriteria(StoppingCriteria):
         # We add a small epsilon to avoid log(0) issues.
         eps = 1e-12
         entropy = -(probs * (probs + eps).log()).sum(dim=-1)  # shape: [batch_size, num_beams]
-        # print(entropy)
-        # Average the entropy over the beams for each instance
         avg_entropy = entropy.mean(dim=-1)  # shape: [batch_size]
-        
-        # Decision rule:
-        # If the average entropy for an instance is higher than the threshold, it indicates uncertainty,
-        # so we signal to stop generation (True) for that instance.
         decisions = avg_entropy > self.threshold  # boolean tensor of shape [batch_size]
         mae.append(avg_entropy)
-        # print(avg_entropy)
-        # Optionally, log or print avg_entropy for debugging:
-        # print("Avg entropy per instance:", avg_entropy)
-        
-        # Return a list of booleans (one per instance)
         return decisions[0]
 
 
@@ -118,15 +108,15 @@ def transform_dialog_data_to_message(dialog: Dialog, suffix: str) -> dict[str, a
 def get_data(dataset_name: str = "mmdd") -> List[dict[str, any]]:
     if dataset_name == "mmdd":
         test_data = MMDDData(
-            path="../../mnt/CHAT-AS-MULTIMODAL/data/MMDD/test.csv",
+            path="/home/anubhab-pg/CHAT-AS-MULTIMODAL/data/MMDD/test.csv",
             to_filter=True,
             to_replace=True,
             image_path_by_url=create_image_path_by_url_mmdd(
-                "../../mnt/CHAT-AS-MULTIMODAL/data/MMDD/images"
+                "/home/anubhab-pg/CHAT-AS-MULTIMODAL/data/MMDD/images"
             ),
             to_unroll=True,
             min_images_per_dialog=1,
-            # n_samples=1100,
+            n_samples=2,
             to_split=True,
         )
     elif dataset_name == "image_chat":
@@ -149,8 +139,11 @@ def get_data(dataset_name: str = "mmdd") -> List[dict[str, any]]:
 
 
 def infer_batch(engine: "InferEngine", infer_requests: List["InferRequest"]):
-    request_config = RequestConfig(max_tokens=512, temperature=0)
+    stopper = ConfidenceStoppingCriteria(threshold=0.1, batch_size=BS)
+    stopping_criteria = StoppingCriteriaList([stopper])
+    request_config = RequestConfig(max_tokens=512, temperature=0, stopping_criteria=stopping_criteria)
     resp_list = engine.infer(infer_requests, request_config)
+    # print(f"resp_list: {resp_list}")
     return resp_list
 
 
@@ -193,8 +186,6 @@ if __name__ == "__main__":
     adapter = ADAPTER
     engine = PtEngine(model, max_batch_size=BS, adapters=[adapter])
     
-    stopper = ConfidenceStoppingCriteria(threshold=0.5, batch_size=1)
-    engine.model.stopping_criteria = StoppingCriteriaList([stopper])
     
     dataset = get_data()
     if args.resume:

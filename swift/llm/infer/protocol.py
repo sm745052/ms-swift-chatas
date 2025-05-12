@@ -7,6 +7,7 @@ import uuid
 from copy import deepcopy
 from dataclasses import asdict, dataclass, field, fields
 from typing import Any, Dict, List, Literal, Optional, Tuple, Union
+from transformers import StoppingCriteriaList
 
 from PIL import Image
 
@@ -61,6 +62,8 @@ class RequestConfig:
     presence_penalty: float = 0.
     frequency_penalty: float = 0.
     length_penalty: float = 1.
+    
+    stopping_criteria: Optional[StoppingCriteriaList] = None
 
     def __post_init__(self):
         if self.stop is None:

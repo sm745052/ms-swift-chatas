@@ -24,11 +24,11 @@ os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
 
 OBS = 4
 BS = 2
-OUTPUT_FILE = "out.all.mmdd.minicpm.no_img"
+OUTPUT_FILE = "out.all.mmdd.paligemma2.3b.pt224"
 OUTPUT_DIR = "output/"
-NO_IMG = True
-ADAPTER= "/home/bishals/external/swift/output/MiniCPM-V-2_6/v5-20250502-053718/checkpoint-2500"
-
+NO_IMG = False
+ADAPTER= "exp_output_paligemma/v1-20250508-175335/checkpoint-4944"
+MODEL = "google/paligemma2-3b-pt-224"
 
 
 
@@ -69,11 +69,11 @@ def transform_dialog_data_to_message(dialog: Dialog, suffix: str) -> dict[str, a
 def get_data(dataset_name: str = "mmdd") -> List[dict[str, any]]:
     if dataset_name == "mmdd":
         test_data = MMDDData(
-            path="../../mnt/CHAT-AS-MULTIMODAL/data/MMDD/test.csv",
+            path="../../CHAT-AS-MULTIMODAL/data/MMDD/test.csv",
             to_filter=True,
             to_replace=True,
             image_path_by_url=create_image_path_by_url_mmdd(
-                "../../mnt/CHAT-AS-MULTIMODAL/data/MMDD/images"
+                "../../CHAT-AS-MULTIMODAL/data/MMDD/images"
             ),
             to_unroll=True,
             min_images_per_dialog=1,
@@ -140,7 +140,7 @@ if __name__ == "__main__":
         action="store_true",
     )
     args = parser.parse_args()
-    model = "openbmb/MiniCPM-V-2_6"
+    model = MODEL
     adapter = ADAPTER
     engine = PtEngine(model, max_batch_size=BS, adapters=[adapter])
     dataset = get_data()

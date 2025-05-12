@@ -150,12 +150,15 @@ class InferEngine(BaseInferEngine, ProcessorMixin):
               *,
               use_tqdm: Optional[bool] = None,
               **kwargs) -> List[Union[ChatCompletionResponse, Iterator[ChatCompletionStreamResponse]]]:
+        logger.debug("Entered inference")
         if request_config is None:
             request_config = RequestConfig()
         tasks = [self.infer_async(infer_request, request_config, **kwargs) for infer_request in infer_requests]
+        print("Tasks defined")
         if use_tqdm is None:
             use_tqdm = not request_config.stream and len(infer_requests) > 1
         if request_config.stream:
+            print("Here")
             return self._batch_infer_stream(tasks, True, use_tqdm, metrics)
         else:
             i = 0
@@ -169,9 +172,11 @@ class InferEngine(BaseInferEngine, ProcessorMixin):
             while i < len(tasks):
                 tasks_samples = tasks[i:i + max_batch_size]
                 res = self._batch_infer_stream(tasks_samples, False, use_tqdm, metrics)
+                print(res)
                 result += res
                 i += max_batch_size
                 prog_bar.update(len(tasks_samples))
+            print(result)
             return result
 
     @staticmethod
