@@ -1,6 +1,7 @@
 # Copyright (c) Alibaba, Inc. and its affiliates.
 import os
 from typing import List, Literal
+import sys
 
 from tqdm import tqdm
 
@@ -20,56 +21,17 @@ from swift.llm import (
 )
 from argparse import ArgumentParser
 
-from transformers import StoppingCriteria, StoppingCriteriaList
 import torch
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
 
+THRESHOLD = 0.8
 OBS = 4
 BS = 1
-OUTPUT_FILE = "out.all.mmdd.minicpm.no_img.0.1"
+OUTPUT_FILE = f"out.all.mmdd.minicpm.no_img.{THRESHOLD}"
 OUTPUT_DIR = "output/"
 NO_IMG = True
 ADAPTER= "/home/anubhab-pg/sm745052/swift/output/MiniCPM-V-2_6/v5-20250320-065856/checkpoint-2500"
-
-mae = []
-
-# Custom stopping criteria based on token-level confidence
-class ConfidenceStoppingCriteria(StoppingCriteria):
-    def __init__(self, threshold: float, batch_size: int=1):
-        """
-        Args:
-            threshold (float): Stop generation if the average maximum probability across beams falls below this threshold.
-        """
-        self.threshold = threshold
-        self.batch_size = batch_size
-
-    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
-        print("Called")
-        if isinstance(scores, tuple):
-            scores = scores[0]  # logits are first element
-        # Extract the tensor from the tuple
-        scores_tensor = scores[0]  # shape: [batch_size*num_beams, vocab_size]
-        
-        # Calculate number of beams based on the provided batch_size
-        num_beams = scores_tensor.shape[0] // self.batch_size
-        
-        # Reshape scores_tensor to [batch_size, num_beams, vocab_size]
-        scores_tensor = scores_tensor.view(self.batch_size, num_beams, -1)
-        
-        # Compute softmax probabilities along the vocabulary dimension
-        probs = scores_tensor.softmax(dim=-1)
-        
-        # Compute the entropy for each beam:
-        # entropy = -sum(p * log(p)) over the vocab dimension.
-        # We add a small epsilon to avoid log(0) issues.
-        eps = 1e-12
-        entropy = -(probs * (probs + eps).log()).sum(dim=-1)  # shape: [batch_size, num_beams]
-        avg_entropy = entropy.mean(dim=-1)  # shape: [batch_size]
-        decisions = avg_entropy > self.threshold  # boolean tensor of shape [batch_size]
-        mae.append(avg_entropy)
-        return decisions[0]
-
 
 def transform_dialog_data_to_message(dialog: Dialog, suffix: str) -> dict[str, any]:
     query = ""
@@ -139,10 +101,8 @@ def get_data(dataset_name: str = "mmdd") -> List[dict[str, any]]:
 
 
 def infer_batch(engine: "InferEngine", infer_requests: List["InferRequest"]):
-    stopper = ConfidenceStoppingCriteria(threshold=0.1, batch_size=BS)
-    stopping_criteria = StoppingCriteriaList([stopper])
-    request_config = RequestConfig(max_tokens=512, temperature=0, stopping_criteria=stopping_criteria)
-    resp_list = engine.infer(infer_requests, request_config)
+    request_config = RequestConfig(max_tokens=512, temperature=0)
+    resp_list = engine.infer(infer_requests, request_config, use_stopping_criteria=True, threshold=THRESHOLD)
     # print(f"resp_list: {resp_list}")
     return resp_list
 

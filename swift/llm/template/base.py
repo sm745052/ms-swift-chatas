@@ -469,13 +469,14 @@ class Template(ProcessorMixin):
     def decode_prm(self, input_ids: torch.Tensor, logits: torch.Tensor) -> Any:
         raise NotImplementedError
 
-    def generate(self, model, *args, **kwargs):
+    def generate(self, model, use_stopping_criteria: bool = False, threshold: Optional[float] = None, *args, **kwargs) -> Any:
         # Add confidence stopping criteria to stopping criteria list
-        stopper = ConfidenceStoppingCriteria(threshold=0.9, batch_size=1)
+        if use_stopping_criteria:
+            stopper = ConfidenceStoppingCriteria(threshold=threshold, batch_size=1)
 
-        stopping_criteria_list = kwargs.get('stopping_criteria', StoppingCriteriaList())
-        stopping_criteria_list.append(stopper)
-        kwargs['stopping_criteria'] = stopping_criteria_list
+            stopping_criteria_list = kwargs.get('stopping_criteria', StoppingCriteriaList())
+            stopping_criteria_list.append(stopper)
+            kwargs['stopping_criteria'] = stopping_criteria_list
 
         # Ensure scores are returned (for stopping criteria and post-analysis)
         kwargs['output_scores'] = True

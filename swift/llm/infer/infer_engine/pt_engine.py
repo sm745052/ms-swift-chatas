@@ -205,6 +205,8 @@ class PtEngine(InferEngine):
                       *,
                       generation_config: GenerationConfig,
                       adapter_request: Optional[AdapterRequest] = None,
+                      use_stopping_criteria: bool = False,
+                      threshold: Optional[float] = None,
                       **kwargs) -> Iterator[List[Optional[ChatCompletionStreamResponse]]]:
 
         if generation_config.num_beams != 1:
@@ -319,6 +321,7 @@ class PtEngine(InferEngine):
                        template: Template,
                        inputs: Dict[str, Any],
                        adapter_request: Optional[AdapterRequest] = None,
+                       use_stopping_criteria: bool = False,
                        **kwargs):
         call_kwargs = {}
         adapter_names = self._get_adapter_names(adapter_request)
@@ -354,7 +357,9 @@ class PtEngine(InferEngine):
                     *,
                     generation_config: GenerationConfig,
                     adapter_request: Optional[AdapterRequest] = None,
-                    template_inputs=None) -> List[ChatCompletionResponse]:
+                    template_inputs=None,
+                    use_stopping_criteria: bool=False,
+                    threshold: Optional[float]=None) -> List[ChatCompletionResponse]:
         # bos_token TODO: encoder-decoder
         generate_kwargs = {'generation_config': generation_config, **inputs}
         adapter_names = self._get_adapter_names(adapter_request)
@@ -362,7 +367,7 @@ class PtEngine(InferEngine):
             generate_kwargs['adapter_names'] = adapter_names
         num_prompt_tokens = self._get_num_tokens(inputs)
         generate_kwargs = template.prepare_generate_kwargs(generate_kwargs, model=self.model)
-        output = dict(template.generate(self.model, **generate_kwargs))
+        output = dict(template.generate(self.model, use_stopping_criteria=use_stopping_criteria, threshold=threshold, **generate_kwargs))
         output.pop('past_key_values', None)
         batched_generate_ids = output['sequences']
         batched_generate_ids = template.get_generate_ids(batched_generate_ids, num_prompt_tokens)
@@ -452,6 +457,8 @@ class PtEngine(InferEngine):
         template: Optional[Template] = None,
         adapter_request: Optional[AdapterRequest] = None,
         pre_infer_hook=None,
+        use_stopping_criteria: bool = False,
+        threshold: Optional[float] = None,
     ) -> Union[List[ChatCompletionResponse], Iterator[List[Optional[ChatCompletionStreamResponse]]]]:
         self.model.eval()
         request_config = deepcopy(request_config)
@@ -503,7 +510,7 @@ class PtEngine(InferEngine):
         else:
             if len(kwargs) > 0:
                 infer_func = self._infer_forward if template.mode in ('seq_cls', 'prm') else self._infer_full
-                res = infer_func(**kwargs)
+                res = infer_func(use_stopping_criteria=use_stopping_criteria, threshold=threshold, **kwargs)
             else:
                 res = []
             return self._add_error_list(res, error_list)
@@ -516,7 +523,9 @@ class PtEngine(InferEngine):
         *,
         template: Optional[Template] = None,
         use_tqdm: Optional[bool] = None,
-        adapter_request: Optional[AdapterRequest] = None
+        adapter_request: Optional[AdapterRequest] = None,
+        use_stopping_criteria: Optional[bool] = False,
+        threshold: Optional[float] = None,
     ) -> List[Union[ChatCompletionResponse, Iterator[ChatCompletionStreamResponse]]]:
         # print("Inference Started...")
         if request_config is None:
@@ -542,7 +551,7 @@ class PtEngine(InferEngine):
         while i < len(infer_requests):
             infer_requests_samples = infer_requests[i:i + max_batch_size]
             res += self._infer(
-                infer_requests_samples, request_config, template=template, adapter_request=adapter_request)
+                infer_requests_samples, request_config, template=template, adapter_request=adapter_request, use_stopping_criteria=use_stopping_criteria, threshold=threshold)
             i += max_batch_size
             prog_bar.update(len(infer_requests_samples))
         self._update_metrics(res, metrics)
