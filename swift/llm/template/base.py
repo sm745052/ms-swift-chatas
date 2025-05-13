@@ -26,7 +26,51 @@ from .template_inputs import InferRequest, StdTemplateInputs, TemplateInputs
 from .utils import Context, ContextType, StopWordsCriteria, fetch_one, findall, split_str_parts_by
 from .vision_utils import load_audio, load_batch, load_image, rescale_image
 
+from transformers import StoppingCriteria, StoppingCriteriaList
+
 logger = get_logger()
+
+# Custom stopping criteria based on token-level confidence
+class ConfidenceStoppingCriteria(StoppingCriteria):
+    def __init__(self, threshold: float, batch_size: int=1):
+        """
+        Args:
+            threshold (float): Stop generation if the average maximum probability across beams falls below this threshold.
+        """
+        self.threshold = threshold
+        self.batch_size = batch_size
+        # print("Init...")
+
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
+        # print("Called")
+        if scores is None:
+            return False
+        
+        # print("Scores not none...")
+        if isinstance(scores, tuple):
+            scores = scores[0]  # logits are first element
+        # Extract the tensor from the tuple
+        scores_tensor = scores[0]  # shape: [batch_size*num_beams, vocab_size]
+        # print(scores_tensor.shape, scores_tensor)
+        # Calculate number of beams based on the provided batch_size
+        num_beams = 1
+        # print(num_beams)
+        # Reshape scores_tensor to [batch_size, num_beams, vocab_size]
+        scores_tensor = scores_tensor.view(self.batch_size, num_beams, -1)
+        # print(scores_tensor.shape, scores_tensor)
+        # Compute softmax probabilities along the vocabulary dimension
+        probs = scores_tensor.softmax(dim=-1)
+        # print(probs)
+        # Compute the entropy for each beam:
+        # entropy = -sum(p * log(p)) over the vocab dimension.
+        # We add a small epsilon to avoid log(0) issues.
+        eps = 1e-12
+        entropy = -(probs * (probs + eps).log()).sum(dim=-1)  # shape: [batch_size, num_beams]
+        avg_entropy = entropy.mean(dim=-1)  # shape: [batch_size]
+        decisions = avg_entropy > self.threshold  # boolean tensor of shape [batch_size]
+        # mae.append(avg_entropy)
+        print(decisions[0], avg_entropy[0])
+        return decisions[0]
 
 
 class MaxLengthError(ValueError):
@@ -87,6 +131,8 @@ class Template(ProcessorMixin):
         if max_length is None:
             max_length = self.model_info.max_model_len
         tokenizer = self.tokenizer
+        
+        # print(tokenizer.vocab_size)
 
         if not use_chat_template:
             template_meta = template_meta.to_generate_template_meta()
@@ -424,6 +470,17 @@ class Template(ProcessorMixin):
         raise NotImplementedError
 
     def generate(self, model, *args, **kwargs):
+        # Add confidence stopping criteria to stopping criteria list
+        stopper = ConfidenceStoppingCriteria(threshold=0.9, batch_size=1)
+
+        stopping_criteria_list = kwargs.get('stopping_criteria', StoppingCriteriaList())
+        stopping_criteria_list.append(stopper)
+        kwargs['stopping_criteria'] = stopping_criteria_list
+
+        # Ensure scores are returned (for stopping criteria and post-analysis)
+        kwargs['output_scores'] = True
+        kwargs['return_dict_in_generate'] = True
+
         return model.generate(*args, **kwargs)
 
     def _skip_stop_decode(self, generate_ids: List[int], is_finished: bool, **decode_kwargs) -> Any:

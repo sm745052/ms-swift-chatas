@@ -475,6 +475,8 @@ class PtEngine(InferEngine):
             if self.model_info.task_type == 'causal_lm':
                 self.set_default_max_tokens(request_config, inputs)
                 generation_config = self._prepare_generation_config(request_config)
+                # if request_config.stopping_criteria is not None:
+                #     generation_config.stopping_criteria = request_config.stopping_criteria
                 self._add_stop_words(generation_config, request_config, template.template_meta)
 
             kwargs = {
@@ -516,9 +518,11 @@ class PtEngine(InferEngine):
         use_tqdm: Optional[bool] = None,
         adapter_request: Optional[AdapterRequest] = None
     ) -> List[Union[ChatCompletionResponse, Iterator[ChatCompletionStreamResponse]]]:
+        # print("Inference Started...")
         if request_config is None:
             request_config = RequestConfig()
         if request_config.stream:
+            print("Streaming")
             return super().infer(
                 infer_requests,
                 request_config,
@@ -534,6 +538,7 @@ class PtEngine(InferEngine):
         max_batch_size = self.max_batch_size or len(infer_requests)
         res = []
         i = 0
+        # print("Going into while...")
         while i < len(infer_requests):
             infer_requests_samples = infer_requests[i:i + max_batch_size]
             res += self._infer(

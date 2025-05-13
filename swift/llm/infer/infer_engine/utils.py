@@ -152,6 +152,8 @@ def prepare_generation_config(model_generation_config: Optional[GenerationConfig
             kwargs[key] = getattr(model_generation_config, key)
         else:
             kwargs[key] = new_value
+    # for key in ['stopping_criteria']:
+    #     kwargs[key] = getattr(request_config, key)
 
     if not model_generation_config.do_sample and request_config.temperature in {0, None}:
         kwargs['temperature'] = 0
