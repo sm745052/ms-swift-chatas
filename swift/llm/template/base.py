@@ -69,8 +69,43 @@ class ConfidenceStoppingCriteria(StoppingCriteria):
         avg_entropy = entropy.mean(dim=-1)  # shape: [batch_size]
         decisions = avg_entropy > self.threshold  # boolean tensor of shape [batch_size]
         # mae.append(avg_entropy)
-        print(decisions[0], avg_entropy[0])
+        # print(decisions[0], avg_entropy[0])
         return decisions[0]
+
+
+class MinPStoppingCriteria(StoppingCriteria):
+    def __init__(self, min_p, pmax_threshold=None, pool_size_threshold=None, patience=0):
+        self.min_p = min_p
+        self.pmax_thresh = pmax_threshold
+        self.pool_thresh = pool_size_threshold
+        self.patience = patience
+        self.low_conf_count = 0   # e.g. for persistence
+    def __call__(self, input_ids, scores) -> bool:
+        # scores: tensor of shape (batch_size, vocab_size)
+        # Convert logits to probabilities
+        scores = scores[0]
+        probs = scores.softmax(dim=-1)  # if scores are raw logits
+        # Consider only last sequence in each batch
+        p_max, _ = probs.max(dim=-1)    # top token probability
+        # Check low-confidence stop
+        if self.pmax_thresh is not None:
+            if (p_max < self.pmax_thresh).all():
+                self.low_conf_count += 1
+            else:
+                self.low_conf_count = 0
+            if self.low_conf_count > self.patience:
+                # print("Stopping due to low confidence.")
+                return True
+        # Compute min-p pool size for the first example
+        threshold = self.min_p * p_max[0].item()
+        pool_mask = probs[0] >= threshold
+        pool_size = pool_mask.sum().item()
+        # Check pool-size stop (e.g. pool_size<=1)
+        if self.pool_thresh is not None and pool_size <= self.pool_thresh:
+            # print("Stopping due to pool size.")
+            return True
+        # print(f"Pool size: {pool_size}, threshold: {threshold}, p_max: {p_max[0].item()}")
+        return False
 
 
 class MaxLengthError(ValueError):
@@ -472,15 +507,26 @@ class Template(ProcessorMixin):
     def generate(self, model, use_stopping_criteria: bool = False, threshold: Optional[float] = None, *args, **kwargs) -> Any:
         # Add confidence stopping criteria to stopping criteria list
         if use_stopping_criteria:
-            stopper = ConfidenceStoppingCriteria(threshold=threshold, batch_size=1)
+            # stopper = ConfidenceStoppingCriteria(threshold=threshold, batch_size=1)
 
+            # stopping_criteria_list = kwargs.get('stopping_criteria', StoppingCriteriaList())
+            # stopping_criteria_list.append(stopper)
+            # kwargs['stopping_criteria'] = stopping_criteria_list
+        
+            minp_stopper = MinPStoppingCriteria(min_p=0.2, 
+                            pmax_threshold=0.01,  # stop if top token prob <1%
+                            pool_size_threshold=1, # stop if pool collapses to single token
+                            patience=2)           # require 3 low-confidence tokens
+            
             stopping_criteria_list = kwargs.get('stopping_criteria', StoppingCriteriaList())
-            stopping_criteria_list.append(stopper)
+            stopping_criteria_list.append(minp_stopper)
             kwargs['stopping_criteria'] = stopping_criteria_list
-
+            
         # Ensure scores are returned (for stopping criteria and post-analysis)
         kwargs['output_scores'] = True
         kwargs['return_dict_in_generate'] = True
+        # kwargs['do_sample'] = True
+        # kwargs['min_p'] = 0.2   
 
         return model.generate(*args, **kwargs)
 

@@ -373,7 +373,9 @@ class PtEngine(InferEngine):
         batched_generate_ids = template.get_generate_ids(batched_generate_ids, num_prompt_tokens)
         template.debug_logger({'generate_ids': batched_generate_ids})  # debug
         batched_logprobs = self.preprocess_logits(
-            output.get('logits'), batched_generate_ids, generation_config.top_logprobs)
+            output.get('scores'), batched_generate_ids, generation_config.top_logprobs)
+        
+        # print(output, batched_logprobs)
 
         res = []
         num_return_sequences = generation_config.num_return_sequences
@@ -392,8 +394,12 @@ class PtEngine(InferEngine):
                     logprobs_list = [
                         logprobs for m, logprobs in zip(masks, batched_logprobs[batched_index]) if m.item()
                     ]
+                    
+                # print(logprobs_list)
 
                 logprobs = self._get_logprobs(logprobs_list, generate_ids, generation_config.top_logprobs)
+                
+                # print(logprobs)
                 usage_info = self._update_usage_info(usage_info, len(generate_ids))
                 response = template.decode(generate_ids, template_inputs=template_inputs[i])
                 finish_reason = self._get_finish_reason(generation_config.max_new_tokens, num_prompt_tokens, True)
