@@ -107,6 +107,14 @@ class MinPStoppingCriteria(StoppingCriteria):
         # print(f"Pool size: {pool_size}, threshold: {threshold}, p_max: {p_max[0].item()}")
         return False
 
+# Stopping Criteria for stopping after 1 token is generated
+class StopAfterOneToken(StoppingCriteria):
+    def __init__(self):
+        super().__init__()
+
+    def __call__(self, input_ids: torch.LongTensor, scores: torch.FloatTensor, **kwargs) -> bool:
+        # Stop after the first token is generated
+        return input_ids.shape[1] >= 2  # 1 for the initial token, 1 for the generated token
 
 class MaxLengthError(ValueError):
     pass
@@ -504,15 +512,16 @@ class Template(ProcessorMixin):
     def decode_prm(self, input_ids: torch.Tensor, logits: torch.Tensor) -> Any:
         raise NotImplementedError
 
-    def generate(self, model, use_stopping_criteria: bool = False, threshold: Optional[float] = None, *args, **kwargs) -> Any:
+    def generate(self, model, use_stopping_criteria: int = False, threshold: Optional[float] = None, *args, **kwargs) -> Any:
         # Add confidence stopping criteria to stopping criteria list
-        if use_stopping_criteria:
-            # stopper = ConfidenceStoppingCriteria(threshold=threshold, batch_size=1)
+        if use_stopping_criteria == 1:
+            stopper = ConfidenceStoppingCriteria(threshold=threshold, batch_size=1)
 
-            # stopping_criteria_list = kwargs.get('stopping_criteria', StoppingCriteriaList())
-            # stopping_criteria_list.append(stopper)
-            # kwargs['stopping_criteria'] = stopping_criteria_list
+            stopping_criteria_list = kwargs.get('stopping_criteria', StoppingCriteriaList())
+            stopping_criteria_list.append(stopper)
+            kwargs['stopping_criteria'] = stopping_criteria_list
         
+        if use_stopping_criteria == 2:
             minp_stopper = MinPStoppingCriteria(min_p=0.2, 
                             pmax_threshold=0.01,  # stop if top token prob <1%
                             pool_size_threshold=1, # stop if pool collapses to single token
@@ -521,13 +530,20 @@ class Template(ProcessorMixin):
             stopping_criteria_list = kwargs.get('stopping_criteria', StoppingCriteriaList())
             stopping_criteria_list.append(minp_stopper)
             kwargs['stopping_criteria'] = stopping_criteria_list
+            # kwargs['do_sample'] = True
+            # kwargs['min_p'] = 0.2   
+            
+        if use_stopping_criteria == 3:
+            # ADHOC - STOP AFTER 1 TOKEN
+            onetoken_stopper = StopAfterOneToken()
+            stopping_criteria_list = kwargs.get('stopping_criteria', StoppingCriteriaList())
+            stopping_criteria_list.append(onetoken_stopper)
+            kwargs['stopping_criteria'] = stopping_criteria_list
             
         # Ensure scores are returned (for stopping criteria and post-analysis)
         kwargs['output_scores'] = True
         kwargs['return_dict_in_generate'] = True
-        # kwargs['do_sample'] = True
-        # kwargs['min_p'] = 0.2   
-
+        
         return model.generate(*args, **kwargs)
 
     def _skip_stop_decode(self, generate_ids: List[int], is_finished: bool, **decode_kwargs) -> Any:

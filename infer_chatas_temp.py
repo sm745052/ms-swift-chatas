@@ -28,13 +28,13 @@ BS = 64
 OUTPUT_DIR = "output/"
 
 
-NO_IMG = False
+# NO_IMG = False
 
 
-OUTPUT_FILE = "out.all.imagechat.paligemma2.3b.pt224"
-torch._dynamo.config.disable = True      # for paligemma its required
-ADAPTER= "ckpts/exp_output_paligemma_imgchat/v3-20250529-040720/checkpoint-105000"
-MODEL = "google/paligemma2-3b-pt-224"
+# OUTPUT_FILE = "out.all.imagechat.paligemma2.3b.pt224"
+# torch._dynamo.config.disable = True      # for paligemma its required
+# ADAPTER= "ckpts/exp_output_paligemma_imgchat/v3-20250529-040720/checkpoint-105000"
+# MODEL = "google/paligemma2-3b-pt-224"
 
 # OUTPUT_FILE = "out.all.imagechat.qwen2.vl.2b.instruct"
 # ADAPTER= "ckpts/exp_output_qwen2_vl_imagechat/v1-20250529-055538/checkpoint-103000"
@@ -42,14 +42,14 @@ MODEL = "google/paligemma2-3b-pt-224"
 
 
 
-# THRESHOLD = 0.8
-# OBS = 1
-# BS = 1
-# OUTPUT_FILE = f"out.all.mmdd.minicpm.no_img"
-# OUTPUT_DIR = "output/"
-# NO_IMG = True
-# ADAPTER= "/home/anubhab-pg/sm745052/swift/output/MiniCPM-V-2_6/v5-20250320-065856/checkpoint-2500"
-# MODEL="openbmb/MiniCPM-V-2_6"
+THRESHOLD = 0.8
+OBS = 1
+BS = 1
+OUTPUT_FILE = f"temp.all.mmdd.minicpm.no_img"
+OUTPUT_DIR = "output/"
+NO_IMG = True
+ADAPTER= "/home/anubhab-pg/sm745052/swift/output/MiniCPM-V-2_6/v5-20250320-065856/checkpoint-2500"
+MODEL="openbmb/MiniCPM-V-2_6"
 
 
 # OUTPUT_FILE = f"out.all.mmdd.minicpm"
@@ -92,7 +92,7 @@ def transform_dialog_data_to_message(dialog: Dialog, suffix: str) -> dict[str, a
     }
 
 
-def get_data(dataset_name: str = "image_chat") -> List[dict[str, any]]:
+def get_data(dataset_name: str = "mmdd") -> List[dict[str, any]]:
     if dataset_name == "mmdd":
         test_data = MMDDData(
             path="../../CHAT-AS-MULTIMODAL/data/MMDD/test.csv",
@@ -121,7 +121,10 @@ def get_data(dataset_name: str = "image_chat") -> List[dict[str, any]]:
     for dialog, suffix in test_data:
         if len([i for i in dialog.utterances[:-1] if len(i.images) > 0]) == 0:
             continue
-        data.append((dialog.idx, transform_dialog_data_to_message(dialog, suffix)))
+        if dialog.idx == 'te_persona_chat107__u14__s7':
+            print("hello")
+            print(transform_dialog_data_to_message(dialog, suffix))
+            data.append((dialog.idx, transform_dialog_data_to_message(dialog, suffix)))
     return data
 
 

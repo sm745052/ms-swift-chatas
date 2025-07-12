@@ -205,7 +205,7 @@ class PtEngine(InferEngine):
                       *,
                       generation_config: GenerationConfig,
                       adapter_request: Optional[AdapterRequest] = None,
-                      use_stopping_criteria: bool = False,
+                      use_stopping_criteria: int = False,
                       threshold: Optional[float] = None,
                       **kwargs) -> Iterator[List[Optional[ChatCompletionStreamResponse]]]:
 
@@ -321,7 +321,7 @@ class PtEngine(InferEngine):
                        template: Template,
                        inputs: Dict[str, Any],
                        adapter_request: Optional[AdapterRequest] = None,
-                       use_stopping_criteria: bool = False,
+                       use_stopping_criteria: int = False,
                        **kwargs):
         call_kwargs = {}
         adapter_names = self._get_adapter_names(adapter_request)
@@ -358,7 +358,7 @@ class PtEngine(InferEngine):
                     generation_config: GenerationConfig,
                     adapter_request: Optional[AdapterRequest] = None,
                     template_inputs=None,
-                    use_stopping_criteria: bool=False,
+                    use_stopping_criteria: int=False,
                     threshold: Optional[float]=None) -> List[ChatCompletionResponse]:
         # bos_token TODO: encoder-decoder
         generate_kwargs = {'generation_config': generation_config, **inputs}
@@ -463,7 +463,7 @@ class PtEngine(InferEngine):
         template: Optional[Template] = None,
         adapter_request: Optional[AdapterRequest] = None,
         pre_infer_hook=None,
-        use_stopping_criteria: bool = False,
+        use_stopping_criteria: int = False,
         threshold: Optional[float] = None,
     ) -> Union[List[ChatCompletionResponse], Iterator[List[Optional[ChatCompletionStreamResponse]]]]:
         self.model.eval()
@@ -530,7 +530,7 @@ class PtEngine(InferEngine):
         template: Optional[Template] = None,
         use_tqdm: Optional[bool] = None,
         adapter_request: Optional[AdapterRequest] = None,
-        use_stopping_criteria: Optional[bool] = False,
+        use_stopping_criteria: int = False,
         threshold: Optional[float] = None,
     ) -> List[Union[ChatCompletionResponse, Iterator[ChatCompletionStreamResponse]]]:
         # print("Inference Started...")

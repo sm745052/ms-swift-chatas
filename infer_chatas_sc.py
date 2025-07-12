@@ -26,12 +26,12 @@ import torch
 os.environ["CUDA_VISIBLE_DEVICES"] = "0,1"
 
 THRESHOLD = 0.0
-OBS = 4
-BS = 1
-OUTPUT_FILE = "test_logprobs" #f"out.all.mmdd.minicpm.minp.{THRESHOLD}"
+OBS = 32
+BS = 8
+OUTPUT_FILE = "logprobs.minicpm" #f"out.all.mmdd.minicpm.minp.{THRESHOLD}"
 OUTPUT_DIR = "output/"
 NO_IMG = False
-ADAPTER= "/home/anubhab-pg/sm745052/swift/output/MiniCPM-V-2_6/v5-20250320-065856/checkpoint-2500"
+ADAPTER= "output/MiniCPM-V-2_6/v27-20250320-103302/checkpoint-3000"
 
 def transform_dialog_data_to_message(dialog: Dialog, suffix: str) -> dict[str, any]:
     query = ""
@@ -78,7 +78,7 @@ def get_data(dataset_name: str = "mmdd") -> List[dict[str, any]]:
             ),
             to_unroll=True,
             min_images_per_dialog=1,
-            n_samples=2,
+            # n_samples=2,
             to_split=True,
         )
     elif dataset_name == "image_chat":
@@ -89,7 +89,7 @@ def get_data(dataset_name: str = "mmdd") -> List[dict[str, any]]:
             image_path_by_url=create_image_path_by_url_image_chat("../../mnt/anubhab/ParlAI/data/yfcc_images"),
             to_unroll=True,
             min_images_per_dialog=1,
-            n_samples=2,
+            # n_samples=2,
             to_split=True,
         )
     data = []
@@ -102,7 +102,7 @@ def get_data(dataset_name: str = "mmdd") -> List[dict[str, any]]:
 
 def infer_batch(engine: "InferEngine", infer_requests: List["InferRequest"]):
     request_config = RequestConfig(max_tokens=512, temperature=0)
-    resp_list = engine.infer(infer_requests, request_config, use_stopping_criteria=False, threshold=THRESHOLD)
+    resp_list = engine.infer(infer_requests, request_config, use_stopping_criteria=3, threshold=THRESHOLD)
     # print(f"resp_list: {resp_list}")
     return resp_list
 
@@ -155,16 +155,19 @@ def process_outer_batch(
             return None
         try:
             logprobs = [entry["logprob"] for entry in logprobs_dict["content"]]
-            return -sum(logprobs)
+            first_token_logprob = logprobs[0] if logprobs else 0.0
+            return -sum(logprobs), first_token_logprob
         except Exception as e:
             print(f"Error computing NLL: {e}")
             return None
 
+    output_logprobs = [compute_nll(r.choices[0].logprobs) for r in resp]
     df = pd.DataFrame(
         {
             "idx": infer_idxs,
             "pred": [r.choices[0].message.content for r in resp],
-            "nll": [compute_nll(r.choices[0].logprobs) for r in resp],
+            "nll": [logprob[0] if logprob else None for logprob in output_logprobs],
+            "first_token_logprob": [logprob[1] if logprob else None for logprob in output_logprobs],
         }
     )
 
@@ -202,7 +205,7 @@ if __name__ == "__main__":
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     if not args.resume:
         # Write header
-        pd.DataFrame(columns=["idx", "pred", "nll"]).to_csv(
+        pd.DataFrame(columns=["idx", "pred", "nll", "first_token_lp"]).to_csv(
             os.path.join(OUTPUT_DIR, OUTPUT_FILE), index=False, sep=";"
         )
     for outer_batch in tqdm(outer_batches):
