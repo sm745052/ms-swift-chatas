@@ -149,3 +149,8 @@ megatron_output/
 
 # ast template
 ast_index_file.py
+
+# custom
+**/*output*
+*.zip
+MiniCPM-V-2_6_ck_92000/

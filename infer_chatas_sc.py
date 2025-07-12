@@ -67,7 +67,7 @@ def transform_dialog_data_to_message(dialog: Dialog, suffix: str) -> dict[str, a
     }
 
 
-def get_data(dataset_name: str = "mmdd") -> List[dict[str, any]]:
+def get_data(dataset_name: str = "image_chat") -> List[dict[str, any]]:
     if dataset_name == "mmdd":
         test_data = MMDDData(
             path="/home/anubhab-pg/CHAT-AS-MULTIMODAL/data/MMDD/test.csv",
@@ -83,10 +83,10 @@ def get_data(dataset_name: str = "mmdd") -> List[dict[str, any]]:
         )
     elif dataset_name == "image_chat":
         test_data = ImageChatData(
-            path="../../mnt/anubhab/ParlAI/data/image_chat/test.csv",
+            path="../../anubhab/ParlAI/data/image_chat/test.csv",
             to_filter=True,
             to_replace=True,
-            image_path_by_url=create_image_path_by_url_image_chat("../../mnt/anubhab/ParlAI/data/yfcc_images"),
+            image_path_by_url=create_image_path_by_url_image_chat("../../anubhab/ParlAI/data/yfcc_images"),
             to_unroll=True,
             min_images_per_dialog=1,
             # n_samples=2,
