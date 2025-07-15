@@ -23,8 +23,9 @@ from argparse import ArgumentParser
 import torch
 
 
-OBS = 64
-BS = 64
+# Defaults; can be overridden by CLI flags
+OBS = 64          # outer-batch size
+BS = 64           # inner batch size
 OUTPUT_DIR = "output/"
 
 
@@ -165,7 +166,26 @@ if __name__ == "__main__":
         "--resume",
         action="store_true",
     )
+    parser.add_argument("--batch_size", type=int, default=BS,
+                        help="inner batch size passed to PtEngine")
+    parser.add_argument("--outer_batch_size", type=int, default=OBS,
+                        help="how many items per outer batch")
+    parser.add_argument("--model", default=None,
+                        help="HF model name (leave blank to use hard-coded one)")
+    parser.add_argument("--adapter", default=None,
+                        help="LoRA / adapter checkpoint (leave blank to use hard-coded one)")
+    parser.add_argument("--output_file", default=None,
+                        help="filename to write preds to")
     args = parser.parse_args()
+    
+    # Override globals if CLI arguments were provided
+    global BS, OBS, MODEL, ADAPTER, OUTPUT_FILE
+    BS = args.batch_size
+    OBS = args.outer_batch_size
+    if args.model:        MODEL = args.model
+    if args.adapter:      ADAPTER = args.adapter
+    if args.output_file:  OUTPUT_FILE = args.output_file
+    
     model = MODEL
     adapter = ADAPTER
     engine = PtEngine(model, max_batch_size=BS, adapters=[adapter])
