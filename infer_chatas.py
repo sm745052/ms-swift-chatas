@@ -93,14 +93,14 @@ def transform_dialog_data_to_message(dialog: Dialog, suffix: str) -> dict[str, a
     }
 
 
-def get_data(dataset_name: str = "image_chat") -> List[dict[str, any]]:
+def get_data(image_dir: str,dataset_path: str, dataset_name: str = "image_chat") -> List[dict[str, any]]:
     if dataset_name == "mmdd":
         test_data = MMDDData(
-            path="../../CHAT-AS-MULTIMODAL/data/MMDD/test.csv",
+            path=dataset_path,
             to_filter=True,
             to_replace=True,
             image_path_by_url=create_image_path_by_url_mmdd(
-                "../../CHAT-AS-MULTIMODAL/data/MMDD/images"
+                image_dir
             ),
             to_unroll=True,
             min_images_per_dialog=1,
@@ -109,10 +109,10 @@ def get_data(dataset_name: str = "image_chat") -> List[dict[str, any]]:
         )
     elif dataset_name == "image_chat":
         test_data = ImageChatData(
-            path="../../anubhab/ParlAI/data/image_chat/test.csv",
+            path=dataset_path,
             to_filter=True,
             to_replace=True,
-            image_path_by_url=create_image_path_by_url_image_chat("../../anubhab/ParlAI/data/yfcc_images"),
+            image_path_by_url=create_image_path_by_url_image_chat(image_dir),
             to_unroll=True,
             min_images_per_dialog=1,
             n_samples=4800,
@@ -176,6 +176,13 @@ if __name__ == "__main__":
                         help="LoRA / adapter checkpoint (leave blank to use hard-coded one)")
     parser.add_argument("--output_file", default=None,
                         help="filename to write preds to")
+    parser.add_argument("--dataset", default="image_chat",
+                        choices=["image_chat", "mmdd"],
+                        help="dataset to use")
+    parser.add_argument("--dataset_path", default="../../anubhab/ParlAI/data/image_chat/test.csv",
+                        help="dataset to use")
+    parser.add_argument("--image_dir", default="../../anubhab/ParlAI/data/yfcc_images",
+                        help="image directory")
     args = parser.parse_args()
     
     
@@ -190,7 +197,7 @@ if __name__ == "__main__":
         torch._dynamo.config.disable = True 
     adapter = ADAPTER
     engine = PtEngine(model, max_batch_size=BS, adapters=[adapter])
-    dataset = get_data()
+    dataset = get_data(args.image_dir, args.dataset_path, args.dataset)
     if args.resume:
         # Read existing file to get the last idx
         print(f"reading {os.path.join(OUTPUT_DIR, OUTPUT_FILE)}")
