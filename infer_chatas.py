@@ -24,18 +24,18 @@ import torch
 
 
 # Defaults; can be overridden by CLI flags
-OBS = 64          # outer-batch size
-BS = 64           # inner batch size
+OBS = 32         # outer-batch size
+BS = 16          # inner batch size
 OUTPUT_DIR = "output/"
 
 
 NO_IMG = False
 
 
-OUTPUT_FILE = "out.all.imagechat.paligemma2.3b.pt224"
-torch._dynamo.config.disable = True      # for paligemma its required
-ADAPTER= "ckpts/exp_output_paligemma_imgchat/v3-20250529-040720/checkpoint-105000"
-MODEL = "google/paligemma2-3b-pt-224"
+# OUTPUT_FILE = "out.all.imagechat.paligemma2.3b.pt224"
+# torch._dynamo.config.disable = True      # for paligemma its required
+# ADAPTER= "ckpts/exp_output_paligemma_imgchat/v3-20250529-040720/checkpoint-105000"
+# MODEL = "google/paligemma2-3b-pt-224"
 
 # OUTPUT_FILE = "out.all.imagechat.qwen2.vl.2b.instruct"
 # ADAPTER= "ckpts/exp_output_qwen2_vl_imagechat/v1-20250529-055538/checkpoint-103000"
@@ -178,8 +178,7 @@ if __name__ == "__main__":
                         help="filename to write preds to")
     args = parser.parse_args()
     
-    # Override globals if CLI arguments were provided
-    global BS, OBS, MODEL, ADAPTER, OUTPUT_FILE
+    
     BS = args.batch_size
     OBS = args.outer_batch_size
     if args.model:        MODEL = args.model
@@ -187,6 +186,8 @@ if __name__ == "__main__":
     if args.output_file:  OUTPUT_FILE = args.output_file
     
     model = MODEL
+    if model == "google/paligemma2-3b-pt-224":
+        torch._dynamo.config.disable = True 
     adapter = ADAPTER
     engine = PtEngine(model, max_batch_size=BS, adapters=[adapter])
     dataset = get_data()

@@ -31,7 +31,7 @@ OUTPUT_FILE = "out.all.imagechat.paligemma2.3b.pt224"
 ADAPTER= "ckpts/exp_output_paligemma_imgchat/v3-20250529-040720/checkpoint-105000"
 MODEL = "google/paligemma2-3b-pt-224"
 
-
+cat run
 
 def transform_dialog_data_to_message(dialog: Dialog, suffix: str) -> dict[str, any]:
     query = ""

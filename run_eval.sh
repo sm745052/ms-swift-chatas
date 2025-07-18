@@ -10,12 +10,13 @@ if [[ $# -lt 1 || "$1" == "-h" || "$1" == "--help" ]]; then
   echo "Usage: $0 <model_name> [batch_size] [outer_batch_size]"
   echo ""
   echo "Models:"
-  echo "  paligemma    - PaliGemma 2 3B PT-224"
-  echo "  qwen         - Qwen2-VL-2B-Instruct"
+  echo "  paligemma                - PaliGemma 2 3B PT-224"
+  echo "  qwen                     - Qwen2-VL-2B-Instruct"
+  echo " minicpm_i                 -  MiniCPM-V-2_6"
   echo ""
   echo "Examples:"
-  echo "  $0 paligemma         # Run PaliGemma with default batch sizes"
-  echo "  $0 qwen 16 4         # Run Qwen with batch_size=16, outer_batch_size=4"
+  echo "  bash $0 paligemma         # Run PaliGemma with default batch sizes"
+  echo "  bash $0 qwen 16 4         # Run Qwen with batch_size=16, outer_batch_size=4"
   exit 1
 fi
 
@@ -34,9 +35,14 @@ case "$MODEL_NAME" in
     ADAPTER="ckpts/exp_output_qwen2_vl_imagechat/v1-20250529-055538/checkpoint-103000"
     MODEL="qwen/Qwen2-VL-2B-Instruct"
     ;;
+  minicpm_i)
+    OUTPUT_FILE="out.all.imagechat.minicpm_image"
+    ADAPTER="ckpts/MiniCPM-V-2_6_ck_92000"
+    MODEL="openbmb/MiniCPM-V-2_6"
+    ;;
   *)
     echo "Error: Unknown model '$MODEL_NAME'"
-    echo "Available models: paligemma, qwen"
+    echo "Available models: paligemma, qwen, minicpm_i"
     exit 1
     ;;
 esac
@@ -49,10 +55,14 @@ echo "  Batch size:      $BATCH_SIZE"
 echo "  Outer batch:     $OUTER_BATCH"
 echo ""
 
+
+# Initialize conda for this script
+source "$HOME/miniconda3/etc/profile.d/conda.sh"
+conda activate swift
+
 python infer_chatas.py \
   --model "$MODEL" \
   --adapter "$ADAPTER" \
   --output_file "$OUTPUT_FILE" \
   --batch_size "$BATCH_SIZE" \
-  --outer_batch_size "$OUTER_BATCH" \
-  "$@" 
+  --outer_batch_size "$OUTER_BATCH"
